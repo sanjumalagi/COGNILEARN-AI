@@ -1,0 +1,29 @@
+# Backend
+**/__pycache__/
+**/*.pyc
+backend/.env
+backend/tests/**/__pycache__/
+**/.pytest_cache/
+*.db
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+
+# Version control / editor
+.git/
+.gitignore
+.vscode/
+.idea/
+
+# Docs (not needed inside images)
+01_Project_Foundation/
+02_System_Architecture/
+03_SOFTWARE_DESIGN/
+04_ALGORITHM_DESIGN/
+05_DATA_AND_MODEL_DESIGN/
+06_IMPLEMENTATION_GUIDE/
+07_TESTING_AND_VALIDATION/
+08_DEPLOYMENT_AND_OPERATIONS/
+09_Appendices/

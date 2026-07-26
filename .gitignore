@@ -1,19 +1,30 @@
-# Python
+# --- Python / Backend ---
 __pycache__/
-*.pyc
+*.py[cod]
+*.egg-info/
 .venv/
 venv/
+*.db
+.pytest_cache/
+backend/.env
 
-# Node
+# --- Node / Frontend ---
 node_modules/
+frontend/dist/
+frontend/.env
+frontend/*.tsbuildinfo
 
-# IDE
+# --- Environment ---
+.env
+*.env.local
+
+# --- Editor / OS ---
 .vscode/
 .idea/
-
-# OS
 .DS_Store
-Thumbs.db
 
-# Logs
+# --- Docker ---
+docker-compose.override.yml
+
+# --- Logs ---
 *.log
