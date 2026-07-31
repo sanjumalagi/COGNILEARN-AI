@@ -1,0 +1,30 @@
+# --- Python / Backend ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+*.db
+.pytest_cache/
+backend/.env
+
+# --- Node / Frontend ---
+node_modules/
+frontend/dist/
+frontend/.env
+frontend/*.tsbuildinfo
+
+# --- Environment ---
+.env
+*.env.local
+
+# --- Editor / OS ---
+.vscode/
+.idea/
+.DS_Store
+
+# --- Docker ---
+docker-compose.override.yml
+
+# --- Logs ---
+*.log
