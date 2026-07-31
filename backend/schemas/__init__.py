@@ -43,6 +43,14 @@ from backend.schemas.auth import (
     UserPublic,
 )
 from backend.schemas.course import CourseCreate, CourseListResponse, CourseResponse, CourseUpdate
+from backend.schemas.learner import (
+    AbilityDetail,
+    LearnerProfileDetail,
+    ProgressEntry,
+    ProgressListResponse,
+    TopicMasteryDetail,
+    TopicMasteryListResponse,
+)
 from backend.schemas.learning_objective import (
     LearningObjectiveCreate,
     LearningObjectiveListResponse,
@@ -108,4 +116,10 @@ __all__ = [
     "AssessmentResultResponse",
     "AssessmentHistoryItem",
     "AssessmentHistoryResponse",
+    "AbilityDetail",
+    "LearnerProfileDetail",
+    "ProgressEntry",
+    "ProgressListResponse",
+    "TopicMasteryDetail",
+    "TopicMasteryListResponse",
 ]

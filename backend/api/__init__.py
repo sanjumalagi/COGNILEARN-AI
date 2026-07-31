@@ -17,6 +17,7 @@ from backend.api.assessment_items import router as assessment_items_router
 from backend.api.assessments import router as assessments_router
 from backend.api.courses import router as courses_router
 from backend.api.health import router as health_router
+from backend.api.learner import router as learner_router
 from backend.api.learning_objectives import router as learning_objectives_router
 from backend.api.modules import router as modules_router
 from backend.api.topics import router as topics_router
@@ -36,9 +37,9 @@ api_router.include_router(assessments_router, prefix="/assessments", tags=["Asse
 api_router.include_router(
     assessment_items_router, prefix="/assessment-items", tags=["Assessment Items"]
 )
+api_router.include_router(learner_router, prefix="/learner", tags=["Learner"])
 
 # Future routers, registered as each module is implemented:
-# api_router.include_router(learner_router, prefix="/learner", tags=["Learner"])
 # api_router.include_router(adaptive_router, prefix="/adaptive", tags=["Adaptive Learning"])
 # api_router.include_router(ai_router, prefix="/ai", tags=["AI Tutor"])
 # api_router.include_router(analytics_router, prefix="/analytics", tags=["Analytics"])

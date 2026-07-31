@@ -46,6 +46,7 @@ from backend.schemas.assessment_attempt import (
     SubmitAnswerResponse,
 )
 from backend.schemas.assessment_item import AssessmentItemPublic
+from backend.services.learning_intelligence_service import LearningIntelligenceService
 
 logger = get_logger(__name__)
 
@@ -58,6 +59,7 @@ class AssessmentAttemptService:
         self.assessments = AssessmentRepository(db)
         self.items = AssessmentItemRepository(db)
         self.responses = AssessmentResponseRepository(db)
+        self.learning_intelligence = LearningIntelligenceService(db)
 
     def start_assessment(
         self, *, actor: User, payload: GenerateAssessmentRequest
@@ -86,7 +88,11 @@ class AssessmentAttemptService:
 
     def submit_assessment(self, *, actor: User, payload: SubmitAnswerRequest) -> SubmitAnswerResponse:
         """Records and auto-evaluates one submitted answer (documented
-        `submit_assessment()` + `evaluate_assessment()`)."""
+        `submit_assessment()` + `evaluate_assessment()`), then runs the
+        Learning Intelligence pipeline (IRT ability re-estimation + BKT
+        topic mastery update) immediately after — per the documented
+        processing pipeline, which runs "immediately after assessment
+        evaluation" (IRT Design Section 4; BKT Design Section 4)."""
         student = self._require_student(actor)
 
         item = self.items.find_by_id(payload.question_id)
@@ -108,6 +114,9 @@ class AssessmentAttemptService:
             student.student_id,
             is_correct,
         )
+
+        self.learning_intelligence.process_response(student_id=student.student_id, response=response)
+
         return SubmitAnswerResponse(
             response_id=response.response_id,
             is_correct=is_correct,

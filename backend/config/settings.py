@@ -92,6 +92,34 @@ class Settings(BaseSettings):
         return value
 
     # ------------------------------------------------------------------
+    # Learning Intelligence: IRT (wired in Module 7)
+    # ------------------------------------------------------------------
+    # 04_ALGORITHM_DESIGN/01_ITEM_RESPONSE_THEORY_DESIGN.md specifies the
+    # 1PL (Rasch) model P(theta) = 1 / (1 + e^-(theta - b)) and says to
+    # "estimate ability (theta)", but does not specify the numerical
+    # estimation procedure. These settings configure the standard
+    # Newton-Raphson MLE solver for that exact documented model.
+    IRT_MAX_ITERATIONS: int = Field(default=50)
+    IRT_CONVERGENCE_THRESHOLD: float = Field(default=1e-4)
+    # Clamps applied only to keep all-correct/all-incorrect response
+    # patterns (where unconstrained MLE diverges to +/-infinity) finite
+    # and deterministic, per Section 14's "Produce deterministic results".
+    IRT_ABILITY_MIN: float = Field(default=-4.0)
+    IRT_ABILITY_MAX: float = Field(default=4.0)
+
+    # ------------------------------------------------------------------
+    # Learning Intelligence: BKT (wired in Module 7)
+    # ------------------------------------------------------------------
+    # 04_ALGORITHM_DESIGN/02_BAYESIAN_KNOWLEDGE_TRACING_DESIGN.md Section 7
+    # names the four standard BKT parameters (P(L0), P(T), P(G), P(S)) but
+    # does not supply numeric values. These are the widely-cited baseline
+    # defaults from the original Corbett & Anderson BKT literature.
+    BKT_PRIOR_L0: float = Field(default=0.3, ge=0.0, le=1.0)
+    BKT_PROB_TRANSITION: float = Field(default=0.3, ge=0.0, le=1.0)
+    BKT_PROB_GUESS: float = Field(default=0.2, ge=0.0, le=1.0)
+    BKT_PROB_SLIP: float = Field(default=0.1, ge=0.0, le=1.0)
+
+    # ------------------------------------------------------------------
     # AI Service Layer (implementation deferred to Module 9)
     # ------------------------------------------------------------------
     AI_PROVIDER: str = Field(default="gemini")
