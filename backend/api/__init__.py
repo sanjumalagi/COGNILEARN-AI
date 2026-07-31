@@ -12,13 +12,14 @@ Reference: 02_System_Architecture/05_API_Architecture.md
 
 from fastapi import APIRouter
 
+from backend.api.auth import router as auth_router
 from backend.api.health import router as health_router
 
 api_router = APIRouter()
 api_router.include_router(health_router, tags=["Health"])
+api_router.include_router(auth_router, prefix="/auth", tags=["Authentication"])
 
 # Future routers, registered as each module is implemented:
-# api_router.include_router(auth_router, prefix="/auth", tags=["Authentication"])
 # api_router.include_router(users_router, prefix="/users", tags=["Users"])
 # api_router.include_router(courses_router, prefix="/courses", tags=["Courses"])
 # api_router.include_router(assessments_router, prefix="/assessments", tags=["Assessments"])

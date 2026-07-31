@@ -10,3 +10,23 @@ Assessments, Learner, Adaptive, AI, Analytics) is implemented.
 
 Reference: 05_DATA_AND_MODEL_DESIGN/06_API_DATA_CONTRACTS.md
 """
+
+from backend.schemas.auth import (
+    LoginRequest,
+    LoginResponse,
+    LogoutResponse,
+    RefreshRequest,
+    RefreshResponse,
+    RegisterRequest,
+    UserPublic,
+)
+
+__all__ = [
+    "RegisterRequest",
+    "UserPublic",
+    "LoginRequest",
+    "LoginResponse",
+    "RefreshRequest",
+    "RefreshResponse",
+    "LogoutResponse",
+]

@@ -1,7 +1,15 @@
 [tool.ruff]
 line-length = 110
 target-version = "py312"
-exclude = [".venv", "__pycache__", "*.db"]
+exclude = [".venv", "__pycache__", "*.db", "alembic/versions"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "B", "C4", "SIM"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's dependency-injection idiom requires calling Depends()/Query()/
+# etc. directly in argument defaults — that is how the framework
+# recognizes a parameter as injectable. This is the standard, documented
+# ruff configuration for FastAPI projects, not a suppression of a real risk:
+# Depends() returns a lightweight marker object with no side effects.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.params.Depends"]

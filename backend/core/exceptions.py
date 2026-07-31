@@ -8,6 +8,7 @@ of leaking raw stack traces to clients.
 
 Reference: 03_SOFTWARE_DESIGN/06_Error_handling_Design.md
 Reference: 02_System_Architecture/02_Component_Architecture.md (Section 19)
+Reference: 02_System_Architecture/06_Security_Architecture.md (Section 21 - Error Handling)
 """
 
 from __future__ import annotations
@@ -93,6 +94,7 @@ def _error_response(
     return JSONResponse(
         status_code=status_code,
         content={
+            "success": False,
             "error": {
                 "code": error_code,
                 "message": message,

@@ -15,7 +15,7 @@ Reference: 03_SOFTWARE_DESIGN/01_Package_Design.md (Section 5.9 - Configuration 
 from functools import lru_cache
 from typing import List
 
-from pydantic import Field, computed_field
+from pydantic import Field, computed_field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -61,20 +61,35 @@ class Settings(BaseSettings):
         return [origin.strip() for origin in self.CORS_ORIGINS_RAW.split(",") if origin.strip()]
 
     # ------------------------------------------------------------------
-    # Database (implementation deferred to Module 1 - Database Layer)
+    # Database (wired in Module 1)
     # ------------------------------------------------------------------
     DATABASE_URL: str = Field(
         default="postgresql+psycopg2://cognilearn:cognilearn@localhost:5432/cognilearn_ai"
     )
     DATABASE_ECHO: bool = Field(default=False)
+    DATABASE_POOL_SIZE: int = Field(default=5)
+    DATABASE_MAX_OVERFLOW: int = Field(default=10)
+    DATABASE_POOL_TIMEOUT_SECONDS: int = Field(default=30)
+    DATABASE_POOL_RECYCLE_SECONDS: int = Field(default=1800)
 
     # ------------------------------------------------------------------
-    # Security (implementation deferred to Module 3 - Authentication)
+    # Security (wired in Module 3)
     # ------------------------------------------------------------------
-    SECRET_KEY: str = Field(default="CHANGE_ME_IN_PRODUCTION")
+    SECRET_KEY: str = Field(default="CHANGE_ME_IN_PRODUCTION_this_default_is_not_secure_replace_it")
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7
+
+    @field_validator("SECRET_KEY")
+    @classmethod
+    def _check_secret_key_length(cls, value: str) -> str:
+        # RFC 7518 Section 3.2 recommends an HMAC key of at least the
+        # hash size in bytes (32 for HS256); PyJWT warns below that.
+        if len(value.encode("utf-8")) < 32:
+            raise ValueError(
+                "SECRET_KEY must be at least 32 bytes long (RFC 7518 Section 3.2 minimum for HS256)."
+            )
+        return value
 
     # ------------------------------------------------------------------
     # AI Service Layer (implementation deferred to Module 9)
