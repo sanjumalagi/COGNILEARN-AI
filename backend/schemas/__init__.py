@@ -20,6 +20,15 @@ from backend.schemas.auth import (
     RegisterRequest,
     UserPublic,
 )
+from backend.schemas.course import CourseCreate, CourseListResponse, CourseResponse, CourseUpdate
+from backend.schemas.learning_objective import (
+    LearningObjectiveCreate,
+    LearningObjectiveListResponse,
+    LearningObjectiveResponse,
+    LearningObjectiveUpdate,
+)
+from backend.schemas.module import ModuleCreate, ModuleListResponse, ModuleResponse, ModuleUpdate
+from backend.schemas.topic import TopicCreate, TopicListResponse, TopicResponse, TopicUpdate
 from backend.schemas.user import (
     StudentProfileOut,
     StudentProfileUpdate,
@@ -45,4 +54,20 @@ __all__ = [
     "StudentProfileUpdate",
     "TeacherProfileUpdate",
     "UserUpdateRequest",
+    "CourseCreate",
+    "CourseUpdate",
+    "CourseResponse",
+    "CourseListResponse",
+    "ModuleCreate",
+    "ModuleUpdate",
+    "ModuleResponse",
+    "ModuleListResponse",
+    "TopicCreate",
+    "TopicUpdate",
+    "TopicResponse",
+    "TopicListResponse",
+    "LearningObjectiveCreate",
+    "LearningObjectiveUpdate",
+    "LearningObjectiveResponse",
+    "LearningObjectiveListResponse",
 ]
