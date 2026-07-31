@@ -12,4 +12,4 @@ select = ["E", "F", "W", "B", "C4", "SIM"]
 # recognizes a parameter as injectable. This is the standard, documented
 # ruff configuration for FastAPI projects, not a suppression of a real risk:
 # Depends() returns a lightweight marker object with no side effects.
-extend-immutable-calls = ["fastapi.Depends", "fastapi.params.Depends"]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.params.Depends", "fastapi.Query", "fastapi.params.Query"]

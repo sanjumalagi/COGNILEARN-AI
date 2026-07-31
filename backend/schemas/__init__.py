@@ -20,6 +20,15 @@ from backend.schemas.auth import (
     RegisterRequest,
     UserPublic,
 )
+from backend.schemas.user import (
+    StudentProfileOut,
+    StudentProfileUpdate,
+    TeacherProfileOut,
+    TeacherProfileUpdate,
+    UserDetail,
+    UserListResponse,
+    UserUpdateRequest,
+)
 
 __all__ = [
     "RegisterRequest",
@@ -29,4 +38,11 @@ __all__ = [
     "RefreshRequest",
     "RefreshResponse",
     "LogoutResponse",
+    "StudentProfileOut",
+    "TeacherProfileOut",
+    "UserDetail",
+    "UserListResponse",
+    "StudentProfileUpdate",
+    "TeacherProfileUpdate",
+    "UserUpdateRequest",
 ]
