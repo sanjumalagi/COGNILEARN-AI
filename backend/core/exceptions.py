@@ -123,12 +123,20 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(RequestValidationError)
     async def handle_validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
-        logger.info("Request validation failed | path=%s | errors=%s", request.url.path, exc.errors())
+        # Pydantic v2 includes a `ctx` key in each error dict that can
+        # hold the *raw exception instance* raised inside a
+        # `field_validator` (e.g. `ValueError`) — not JSON-serializable.
+        # Everything client-relevant is already in `msg`/`type`/`loc`, so
+        # `ctx` is dropped rather than passed through to json.dumps().
+        sanitized_errors = [
+            {k: v for k, v in error.items() if k != "ctx"} for error in exc.errors()
+        ]
+        logger.info("Request validation failed | path=%s | errors=%s", request.url.path, sanitized_errors)
         return _error_response(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             "REQUEST_VALIDATION_FAILED",
             "The request could not be validated.",
-            {"errors": exc.errors()},
+            {"errors": sanitized_errors},
         )
 
     @app.exception_handler(StarletteHTTPException)

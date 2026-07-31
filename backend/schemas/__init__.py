@@ -11,6 +11,28 @@ Assessments, Learner, Adaptive, AI, Analytics) is implemented.
 Reference: 05_DATA_AND_MODEL_DESIGN/06_API_DATA_CONTRACTS.md
 """
 
+from backend.schemas.assessment import (
+    AssessmentCreate,
+    AssessmentDetail,
+    AssessmentListResponse,
+    AssessmentUpdate,
+)
+from backend.schemas.assessment_attempt import (
+    AssessmentHistoryItem,
+    AssessmentHistoryResponse,
+    AssessmentResultResponse,
+    GenerateAssessmentRequest,
+    GeneratedAssessmentResponse,
+    SubmitAnswerRequest,
+    SubmitAnswerResponse,
+)
+from backend.schemas.assessment_item import (
+    AssessmentItemCreate,
+    AssessmentItemDetail,
+    AssessmentItemListResponse,
+    AssessmentItemPublic,
+    AssessmentItemUpdate,
+)
 from backend.schemas.auth import (
     LoginRequest,
     LoginResponse,
@@ -70,4 +92,20 @@ __all__ = [
     "LearningObjectiveUpdate",
     "LearningObjectiveResponse",
     "LearningObjectiveListResponse",
+    "AssessmentCreate",
+    "AssessmentUpdate",
+    "AssessmentDetail",
+    "AssessmentListResponse",
+    "AssessmentItemCreate",
+    "AssessmentItemUpdate",
+    "AssessmentItemDetail",
+    "AssessmentItemListResponse",
+    "AssessmentItemPublic",
+    "GenerateAssessmentRequest",
+    "GeneratedAssessmentResponse",
+    "SubmitAnswerRequest",
+    "SubmitAnswerResponse",
+    "AssessmentResultResponse",
+    "AssessmentHistoryItem",
+    "AssessmentHistoryResponse",
 ]

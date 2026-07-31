@@ -13,6 +13,8 @@ Reference: 02_System_Architecture/05_API_Architecture.md
 from fastapi import APIRouter
 
 from backend.api.auth import router as auth_router
+from backend.api.assessment_items import router as assessment_items_router
+from backend.api.assessments import router as assessments_router
 from backend.api.courses import router as courses_router
 from backend.api.health import router as health_router
 from backend.api.learning_objectives import router as learning_objectives_router
@@ -30,9 +32,12 @@ api_router.include_router(topics_router, prefix="/topics", tags=["Topics"])
 api_router.include_router(
     learning_objectives_router, prefix="/learning-outcomes", tags=["Learning Outcomes"]
 )
+api_router.include_router(assessments_router, prefix="/assessments", tags=["Assessments"])
+api_router.include_router(
+    assessment_items_router, prefix="/assessment-items", tags=["Assessment Items"]
+)
 
 # Future routers, registered as each module is implemented:
-# api_router.include_router(assessments_router, prefix="/assessments", tags=["Assessments"])
 # api_router.include_router(learner_router, prefix="/learner", tags=["Learner"])
 # api_router.include_router(adaptive_router, prefix="/adaptive", tags=["Adaptive Learning"])
 # api_router.include_router(ai_router, prefix="/ai", tags=["AI Tutor"])
