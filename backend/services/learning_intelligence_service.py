@@ -23,7 +23,7 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
-from backend.algorithms.bkt.estimator import BKTResult, update_mastery
+from backend.algorithms.bkt.estimator import BKTResult, compute_initial_mastery, update_mastery
 from backend.algorithms.irt.estimator import IRTResult, estimate_ability
 from backend.algorithms.mastery_engine import calculate_overall_mastery
 from backend.core.exceptions import NotFoundError
@@ -88,7 +88,7 @@ class LearningIntelligenceService:
         irt_result = self._update_ability(student_id=student_id, profile_id=profile.learner_profile_id)
 
         bkt_result = self._update_topic_mastery(
-            profile_id=profile.learner_profile_id, topic_id=topic_id, is_correct=response.is_correct
+            student_id=student_id, profile_id=profile.learner_profile_id, topic_id=topic_id, is_correct=response.is_correct
         )
 
         self._update_overall_mastery(profile_id=profile.learner_profile_id)
@@ -136,27 +136,83 @@ class LearningIntelligenceService:
         return irt_result
 
     def _update_topic_mastery(
-        self, *, profile_id: uuid.UUID, topic_id: uuid.UUID, is_correct: bool
+        self, *, student_id: uuid.UUID, profile_id: uuid.UUID, topic_id: uuid.UUID, is_correct: bool
     ) -> BKTResult:
-        """Applies one BKT update for the topic the just-answered item belongs to."""
+        """Applies one BKT update for the topic the just-answered item belongs to.
+
+        For a new learner on this topic (no existing TopicMastery record),
+        initial mastery is derived from diagnostic assessment evidence via
+        ``compute_initial_mastery()`` — never from a fixed P(L0) constant.
+        """
         existing_page = self.topic_masteries.find_all(
             learner_profile_id=profile_id, topic_id=topic_id, limit=1
         )
-        previous_mastery = existing_page.items[0].mastery_score if existing_page.total > 0 else None
-
-        bkt_result = update_mastery(previous_mastery=previous_mastery, is_correct=is_correct)
 
         if existing_page.total > 0:
+            # Existing learner on this topic — standard BKT update.
+            previous_mastery = existing_page.items[0].mastery_score
+            bkt_result = update_mastery(previous_mastery=previous_mastery, is_correct=is_correct)
             self.topic_masteries.update(
                 existing_page.items[0].mastery_id, mastery_score=bkt_result.mastery_probability
             )
         else:
+            # New learner on this topic — derive initial mastery from
+            # diagnostic evidence (the student's responses for this topic).
+            diagnostic_evidence = self._get_diagnostic_evidence(
+                student_id=student_id, topic_id=topic_id
+            )
+            if not diagnostic_evidence:
+                # The current response is the very first — use it as
+                # the sole diagnostic evidence.
+                diagnostic_evidence = [is_correct]
+
+            initial_mastery = compute_initial_mastery(diagnostic_responses=diagnostic_evidence)
+            bkt_result = update_mastery(previous_mastery=initial_mastery, is_correct=is_correct)
             self.topic_masteries.create(
                 learner_profile_id=profile_id,
                 topic_id=topic_id,
                 mastery_score=bkt_result.mastery_probability,
             )
         return bkt_result
+
+    def _get_diagnostic_evidence(
+        self, *, student_id: uuid.UUID, topic_id: uuid.UUID
+    ) -> list[bool]:
+        """
+        Collects the student's assessment responses for a topic to serve
+        as diagnostic evidence for initial mastery estimation.
+
+        Future milestone: This will be replaced by responses from a
+        teacher-created diagnostic assessment. The interface is designed
+        so the diagnostic assessment flow can supply its own responses
+        list without changing the BKT computation layer.
+
+        Returns:
+            Ordered list of is_correct values for the student's responses
+            on items belonging to assessments for this topic.
+        """
+        # Find all assessments for this topic, then collect the student's
+        # responses for items in those assessments.
+        from backend.repositories import AssessmentRepository
+
+        assessments_page = AssessmentRepository(self.db).find_all(topic_id=topic_id, limit=100)
+        if assessments_page.total == 0:
+            return []
+
+        assessment_ids = {a.assessment_id for a in assessments_page.items}
+        evidence: list[bool] = []
+
+        # Gather all items for these assessments, then find student responses.
+        for assessment_id in assessment_ids:
+            items_page = self.items.find_all(assessment_id=assessment_id, limit=1000)
+            for item in items_page.items:
+                responses_page = self.responses.find_all(
+                    student_id=student_id, item_id=item.item_id, limit=1
+                )
+                for resp in responses_page.items:
+                    evidence.append(resp.is_correct)
+
+        return evidence
 
     def _update_overall_mastery(self, *, profile_id: uuid.UUID) -> None:
         """Recomputes LearnerProfile.overall_mastery as the mean of all tracked topic masteries."""

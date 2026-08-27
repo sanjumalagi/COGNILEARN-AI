@@ -51,7 +51,7 @@ class NotFoundError(CogniLearnError):
 class ValidationFailedError(CogniLearnError):
     """Raised when domain-level validation fails outside of Pydantic schemas."""
 
-    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
     error_code = "VALIDATION_FAILED"
 
 

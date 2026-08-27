@@ -112,9 +112,12 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
     # 04_ALGORITHM_DESIGN/02_BAYESIAN_KNOWLEDGE_TRACING_DESIGN.md Section 7
     # names the four standard BKT parameters (P(L0), P(T), P(G), P(S)) but
-    # does not supply numeric values. These are the widely-cited baseline
-    # defaults from the original Corbett & Anderson BKT literature.
-    BKT_PRIOR_L0: float = Field(default=0.3, ge=0.0, le=1.0)
+    # does not supply numeric values. P(T), P(G), P(S) are the widely-cited
+    # baseline defaults from the original Corbett & Anderson BKT literature.
+    #
+    # P(L0) is NOT configured here — initial mastery is derived from
+    # diagnostic assessment evidence via compute_initial_mastery() in
+    # backend.algorithms.bkt.estimator, not from a fixed constant.
     BKT_PROB_TRANSITION: float = Field(default=0.3, ge=0.0, le=1.0)
     BKT_PROB_GUESS: float = Field(default=0.2, ge=0.0, le=1.0)
     BKT_PROB_SLIP: float = Field(default=0.1, ge=0.0, le=1.0)
@@ -127,6 +130,9 @@ class Settings(BaseSettings):
     GEMINI_MODEL: str = Field(default="gemini-1.5-pro")
     AI_REQUEST_TIMEOUT_SECONDS: int = 30
     AI_MAX_RETRIES: int = 3
+    AI_RETRY_BACKOFF_BASE_SECONDS: float = 1.0
+    AI_MAX_OUTPUT_TOKENS: int = 2048
+    AI_RECENT_INTERACTIONS_LIMIT: int = 5
 
     # ------------------------------------------------------------------
     # Logging

@@ -168,13 +168,84 @@ class TestIRTEstimation:
 
 
 class TestBKTFormula:
-    def test_first_response_uses_prior_l0(self) -> None:
+    # ── Evidence-based initial mastery ───────────────────────────────
+
+    def test_no_fixed_prior_l0_used_for_new_learners(self) -> None:
+        """update_mastery(previous_mastery=None) must raise ValueError,
+        proving no fixed P(L0) is silently used for new learners."""
+        with pytest.raises(ValueError, match="diagnostic evidence"):
+            update_mastery(previous_mastery=None, is_correct=True)
+        with pytest.raises(ValueError, match="diagnostic evidence"):
+            update_mastery(previous_mastery=None, is_correct=False)
+
+    def test_different_diagnostic_evidence_produces_different_initial_mastery(self) -> None:
+        """Two learners with different diagnostic response patterns must
+        receive different initial mastery estimates."""
+        from backend.algorithms.bkt.estimator import compute_initial_mastery
+
+        strong_learner = compute_initial_mastery(diagnostic_responses=[True, True, True, False])
+        weak_learner = compute_initial_mastery(diagnostic_responses=[False, False, True, False])
+
+        assert strong_learner != weak_learner
+        assert strong_learner > weak_learner
+
+    def test_compute_initial_mastery_all_correct(self) -> None:
+        """All-correct diagnostic → high initial mastery."""
+        from backend.algorithms.bkt.estimator import compute_initial_mastery
+
+        mastery = compute_initial_mastery(diagnostic_responses=[True, True, True])
+        assert mastery > 0.8
+
+    def test_compute_initial_mastery_all_incorrect(self) -> None:
+        """All-incorrect diagnostic → low initial mastery."""
+        from backend.algorithms.bkt.estimator import compute_initial_mastery
+
+        mastery = compute_initial_mastery(diagnostic_responses=[False, False, False])
+        assert mastery < 0.2
+
+    def test_compute_initial_mastery_mixed_responses(self) -> None:
+        """Mixed diagnostic → intermediate mastery."""
+        from backend.algorithms.bkt.estimator import compute_initial_mastery
+
+        mastery = compute_initial_mastery(diagnostic_responses=[True, False, True, False])
+        assert 0.2 < mastery < 0.8
+
+    def test_compute_initial_mastery_empty_raises(self) -> None:
+        """Empty response list must raise ValueError."""
+        from backend.algorithms.bkt.estimator import compute_initial_mastery
+
+        with pytest.raises(ValueError, match="At least one"):
+            compute_initial_mastery(diagnostic_responses=[])
+
+    def test_compute_initial_mastery_single_response(self) -> None:
+        """Single response works (degenerate but valid case)."""
+        from backend.algorithms.bkt.estimator import compute_initial_mastery
+
+        correct = compute_initial_mastery(diagnostic_responses=[True])
+        incorrect = compute_initial_mastery(diagnostic_responses=[False])
+
+        assert correct > incorrect
+        assert 0.0 <= correct <= 1.0
+        assert 0.0 <= incorrect <= 1.0
+
+    def test_compute_initial_mastery_uses_configurable_guess_slip(self) -> None:
+        """Changing P(G) and P(S) settings affects the initial mastery
+        computation, proving the configurable parameters are used."""
+        from unittest.mock import patch
+
+        from backend.algorithms.bkt.estimator import compute_initial_mastery
         from backend.config import settings
 
-        result = update_mastery(previous_mastery=None, is_correct=True)
-        # With no prior evidence, the posterior starts from BKT_PRIOR_L0.
-        assert 0.0 < result.mastery_probability <= 1.0
-        assert result.mastery_probability > settings.BKT_PRIOR_L0  # correct response should raise it
+        responses = [True, False, True]
+        default_mastery = compute_initial_mastery(diagnostic_responses=responses)
+
+        # With higher guess probability, correct answers carry less weight
+        with patch.object(settings, "BKT_PROB_GUESS", 0.4):
+            high_guess_mastery = compute_initial_mastery(diagnostic_responses=responses)
+
+        assert default_mastery != high_guess_mastery
+
+    # ── Standard BKT update behavior ────────────────────────────────
 
     def test_correct_response_increases_mastery(self) -> None:
         result = update_mastery(previous_mastery=0.3, is_correct=True)
@@ -206,7 +277,9 @@ class TestBKTFormula:
         assert high.recommendation_trigger is False
 
     def test_repeated_correct_responses_trend_toward_mastery(self) -> None:
-        mastery = None
+        from backend.algorithms.bkt.estimator import compute_initial_mastery
+
+        mastery = compute_initial_mastery(diagnostic_responses=[True])
         for _ in range(8):
             result = update_mastery(previous_mastery=mastery, is_correct=True)
             mastery = result.mastery_probability
@@ -343,6 +416,41 @@ class TestPipelineIntegration:
         assert progress.status_code == 200
         assert progress.json()["total"] == 1
 
+    def test_initial_mastery_derived_from_assessment_evidence(self) -> None:
+        """When two new students submit different correctness patterns,
+        they must receive different initial mastery, proving the system
+        uses actual assessment evidence rather than a fixed P(L0) constant."""
+        teacher = _teacher_headers()
+        assessment, items = _build_assessment_with_items(teacher, count=2)
+        student_strong = _student()
+        student_weak = _student()
+
+        # Strong student answers all correct
+        for item in items:
+            client.post(
+                "/api/v1/assessments/submit",
+                json={"question_id": item["item_id"], "selected_answer": "yes", "response_time": 3},
+                headers=student_strong,
+            )
+
+        # Weak student answers all incorrect
+        for item in items:
+            client.post(
+                "/api/v1/assessments/submit",
+                json={"question_id": item["item_id"], "selected_answer": "no", "response_time": 3},
+                headers=student_weak,
+            )
+
+        mastery_strong = client.get("/api/v1/learner/mastery", headers=student_strong).json()
+        mastery_weak = client.get("/api/v1/learner/mastery", headers=student_weak).json()
+
+        strong_score = mastery_strong["items"][0]["mastery"]
+        weak_score = mastery_weak["items"][0]["mastery"]
+
+        assert strong_score > weak_score, (
+            f"Strong learner ({strong_score}) must have higher mastery "
+            f"than weak learner ({weak_score})"
+        )
 
 class TestLearnerEndpointsAuthorization:
     def test_profile_without_learner_data_returns_404(self) -> None:
