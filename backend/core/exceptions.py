@@ -133,7 +133,7 @@ def register_exception_handlers(app: FastAPI) -> None:
         ]
         logger.info("Request validation failed | path=%s | errors=%s", request.url.path, sanitized_errors)
         return _error_response(
-            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
             "REQUEST_VALIDATION_FAILED",
             "The request could not be validated.",
             {"errors": sanitized_errors},
