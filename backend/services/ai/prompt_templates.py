@@ -38,6 +38,7 @@ class PromptTemplateName(str, Enum):
     FEEDBACK = "feedback"
     SUMMARY = "summary"
     CHAT = "chat"
+    TEACHING_CONTENT = "teaching_content"
 
 
 @dataclass(frozen=True)
@@ -113,6 +114,47 @@ _TEMPLATES: dict[PromptTemplateName, PromptTemplate] = {
         ),
         response_instructions=(
             "Respond conversationally in Markdown. Do not introduce unrelated topics."
+        ),
+    ),
+    PromptTemplateName.TEACHING_CONTENT: PromptTemplate(
+        name=PromptTemplateName.TEACHING_CONTENT,
+        teaching_strategy_label="Structured Teaching Content",
+        role_description=(
+            "Act as an educational content engine. Generate structured instructional "
+            "content following the teaching strategy, difficulty, and learning objective "
+            "provided in the Teaching Context. Do not deviate from the provided "
+            "pedagogical decisions. You generate the content; you do not decide what "
+            "or how to teach."
+        ),
+        response_instructions=(
+            "Return a single JSON object (no Markdown fences, no commentary outside "
+            "the JSON). The JSON must contain exactly these fields:\n"
+            "- \"teaching_strategy\": string — echo the teaching strategy from the Teaching Context\n"
+            "- \"topic\": string — echo the topic name from the Teaching Context\n"
+            "- \"learning_objective\": string or null — echo the learning objective\n"
+            "- \"difficulty\": string — echo the difficulty from the Teaching Context\n"
+            "- \"explanation\": string or null — conceptual explanation (required for "
+            "Concept Introduction, Guided Revision, Personalized Explanation, Progression)\n"
+            "- \"examples\": array of strings — worked examples (required for "
+            "Concept Introduction, Guided Revision, Personalized Explanation)\n"
+            "- \"key_takeaways\": array of strings — key points (required for "
+            "Concept Introduction, Progression)\n"
+            "- \"practice_question\": string or null — a practice or assessment question "
+            "(required for Guided Practice, Assessment)\n"
+            "- \"hints\": array of strings — hints for the practice question (required for "
+            "Guided Practice)\n"
+            "- \"expected_answer\": string or null — the correct answer (required for "
+            "Guided Practice, Assessment)\n"
+            "- \"follow_up_activity\": string or null — suggested next activity\n\n"
+            "Rules:\n"
+            "1. Follow the provided teaching strategy exactly.\n"
+            "2. Match the provided difficulty level.\n"
+            "3. Align content with the provided learning objective.\n"
+            "4. Address weak concepts when listed in the Teaching Context.\n"
+            "5. Never change the requested topic.\n"
+            "6. Never invent a different teaching strategy.\n"
+            "7. Do not include learner information not provided in the context.\n"
+            "8. All required fields for the given strategy must be non-empty."
         ),
     ),
 }

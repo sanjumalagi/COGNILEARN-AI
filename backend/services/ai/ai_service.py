@@ -11,9 +11,14 @@ and returns the result.
 
 The AI Service does NOT make pedagogical decisions. All teaching
 strategy, difficulty, learning objective, and recommended activity
-decisions are made by Educational Intelligence (Modules 6–8) and
+decisions are made by Educational Intelligence (Modules 6-8) and
 Teaching Intelligence (Module 10) and delivered through the
 TeachingContextData produced by TeachingEngineService.
+
+`generate_teaching_content()` is the structured-output pathway that
+produces a `TeachingContent` dataclass instead of free-form Markdown.
+It uses the TEACHING_CONTENT template, structured JSON parsing, and
+strategy-specific validation.
 
 Reference: 02_System_Architecture/04_AI_Architecture.md
 (Section 6 - AI Service Layer, Section 14 - AI Request Lifecycle)
@@ -38,6 +43,7 @@ from backend.services.ai.context_builder import ContextBuilder
 from backend.services.ai.prompt_builder import Prompt, PromptBuilder
 from backend.services.ai.prompt_templates import PromptTemplateName, get_template
 from backend.services.ai.retry_handler import with_retries
+from backend.services.ai.teaching_content import TeachingContent
 from backend.services.teaching_engine_service import TeachingEngineService
 
 logger = get_logger(__name__)
@@ -63,6 +69,8 @@ class AIService:
         self.teaching_contexts = TeachingContextRepository(db)
         self.ai_interactions = AIInteractionRepository(db)
 
+    # -- Existing 5-endpoint methods (free-form Markdown) --
+
     def explain(self, *, actor: User, topic_id: uuid.UUID, user_message: str) -> AITutorResult:
         return self._generate(
             PromptTemplateName.EXPLANATION, actor=actor, topic_id=topic_id, user_message=user_message
@@ -87,6 +95,87 @@ class AIService:
         return self._generate(
             PromptTemplateName.CHAT, actor=actor, topic_id=topic_id, user_message=user_message
         )
+
+    # -- Structured Teaching Content pathway --
+
+    def generate_teaching_content(
+        self, *, actor: User, topic_id: uuid.UUID, user_message: str
+    ) -> TeachingContent:
+        """
+        Generate structured instructional content based on Teaching Intelligence.
+
+        Same lifecycle as _generate() but uses:
+        - TEACHING_CONTENT template (requests JSON output)
+        - parse_teaching_content() (structured parser)
+        - validate_teaching_content() (strategy-specific validator)
+
+        Returns a TeachingContent dataclass instead of AITutorResult.
+        """
+        # Step 1: Teaching Intelligence produces the Teaching Context
+        teaching_context = self.teaching_engine_service.generate_context(
+            actor=actor, topic_id=topic_id
+        )
+
+        # Step 2: Context Builder assembles learner evidence + Teaching Context
+        context = self.context_builder.build(
+            actor=actor, topic_id=topic_id, teaching_context=teaching_context
+        )
+
+        # Step 3: Prompt Builder formats context + TEACHING_CONTENT template
+        prompt = self.prompt_builder.build(
+            template=get_template(PromptTemplateName.TEACHING_CONTENT),
+            context=context,
+            user_message=user_message,
+        )
+
+        # Step 4: Invoke the AI provider with retries
+        prompt_tokens_estimate = token_manager.estimate_tokens(prompt.user_prompt)
+        provider_response = with_retries(
+            lambda: self._invoke_provider(prompt),
+            max_retries=settings.AI_MAX_RETRIES,
+            backoff_base_seconds=settings.AI_RETRY_BACKOFF_BASE_SECONDS,
+        )
+
+        # Step 5: Parse into structured TeachingContent
+        teaching_content = response_parser.parse_teaching_content(
+            provider_response.text,
+            teaching_strategy=prompt.teaching_strategy_label,
+            topic=context.topic_title,
+            learning_objective=teaching_context.learning_objective,
+            difficulty=prompt.difficulty.value,
+        )
+
+        # Step 6: Validate strategy-specific requirements
+        response_validator.validate_teaching_content(
+            teaching_content,
+            expected_strategy=prompt.teaching_strategy_label,
+            expected_topic=context.topic_title,
+        )
+
+        # Step 7: Persist the interaction
+        self._log_interaction(
+            student_id=context.student_id,
+            topic_id=topic_id,
+            prompt=prompt,
+            parsed_text=provider_response.text,
+            provider_response=provider_response,
+            teaching_context=teaching_context,
+        )
+
+        logger.info(
+            "Structured teaching content generated | student_id=%s | strategy=%s | "
+            "provider=%s | model=%s | latency_ms=%d | prompt_tokens_estimate=%d",
+            context.student_id,
+            prompt.teaching_strategy_label,
+            provider_response.provider_name,
+            provider_response.model,
+            provider_response.latency_ms,
+            prompt_tokens_estimate,
+        )
+
+        return teaching_content
+
+    # -- Shared internals --
 
     def _generate(
         self, template_name: PromptTemplateName, *, actor: User, topic_id: uuid.UUID, user_message: str
