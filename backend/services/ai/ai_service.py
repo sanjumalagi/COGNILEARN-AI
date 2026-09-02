@@ -3,10 +3,17 @@ AI Service.
 
 The single entry point the API layer calls for all five documented AI
 Module endpoints (explain/hint/feedback/summary/chat). Orchestrates
-the full documented AI Request Lifecycle (Section 14): builds context,
-builds the prompt, invokes the configured provider with retries,
-parses and validates the response, persists the interaction, and
-returns the result.
+the full documented AI Request Lifecycle (Section 14): obtains the
+Teaching Context from Teaching Intelligence, builds the learner
+context, builds the prompt, invokes the configured provider with
+retries, parses and validates the response, persists the interaction,
+and returns the result.
+
+The AI Service does NOT make pedagogical decisions. All teaching
+strategy, difficulty, learning objective, and recommended activity
+decisions are made by Educational Intelligence (Modules 6–8) and
+Teaching Intelligence (Module 10) and delivered through the
+TeachingContextData produced by TeachingEngineService.
 
 Reference: 02_System_Architecture/04_AI_Architecture.md
 (Section 6 - AI Service Layer, Section 14 - AI Request Lifecycle)
@@ -31,6 +38,7 @@ from backend.services.ai.context_builder import ContextBuilder
 from backend.services.ai.prompt_builder import Prompt, PromptBuilder
 from backend.services.ai.prompt_templates import PromptTemplateName, get_template
 from backend.services.ai.retry_handler import with_retries
+from backend.services.teaching_engine_service import TeachingEngineService
 
 logger = get_logger(__name__)
 
@@ -49,6 +57,7 @@ class AIService:
 
     def __init__(self, db: Session) -> None:
         self.db = db
+        self.teaching_engine_service = TeachingEngineService(db)
         self.context_builder = ContextBuilder(db)
         self.prompt_builder = PromptBuilder()
         self.teaching_contexts = TeachingContextRepository(db)
@@ -82,11 +91,22 @@ class AIService:
     def _generate(
         self, template_name: PromptTemplateName, *, actor: User, topic_id: uuid.UUID, user_message: str
     ) -> AITutorResult:
-        context = self.context_builder.build(actor=actor, topic_id=topic_id)
+        # Step 1: Teaching Intelligence produces the Teaching Context
+        teaching_context = self.teaching_engine_service.generate_context(
+            actor=actor, topic_id=topic_id
+        )
+
+        # Step 2: Context Builder assembles learner evidence + Teaching Context
+        context = self.context_builder.build(
+            actor=actor, topic_id=topic_id, teaching_context=teaching_context
+        )
+
+        # Step 3: Prompt Builder formats context + template into a prompt
         prompt = self.prompt_builder.build(
             template=get_template(template_name), context=context, user_message=user_message
         )
 
+        # Step 4: Invoke the AI provider with retries
         prompt_tokens_estimate = token_manager.estimate_tokens(prompt.user_prompt)
         provider_response = with_retries(
             lambda: self._invoke_provider(prompt),
@@ -94,15 +114,18 @@ class AIService:
             backoff_base_seconds=settings.AI_RETRY_BACKOFF_BASE_SECONDS,
         )
 
+        # Step 5: Parse and validate the response
         parsed_text = response_parser.parse_response(provider_response.text)
         response_validator.validate_response(parsed_text)
 
+        # Step 6: Persist the interaction
         self._log_interaction(
             student_id=context.student_id,
             topic_id=topic_id,
             prompt=prompt,
             parsed_text=parsed_text,
             provider_response=provider_response,
+            teaching_context=teaching_context,
         )
 
         logger.info(
@@ -140,20 +163,20 @@ class AIService:
         prompt: Prompt,
         parsed_text: str,
         provider_response: ProviderResponse,
+        teaching_context,
     ) -> None:
         """
         Persists the documented TeachingContext + AIInteraction pair
-        (Section 5 of the Database Schema). See prompt_builder.py's
-        module docstring for why creating a minimal TeachingContext
-        row here — populated entirely from data Modules 6-8 already
-        produced — does not constitute implementing Teaching
-        Intelligence.
+        (Section 5 of the Database Schema).
+
+        Teaching strategy and learning objective are sourced from the
+        TeachingContextData produced by Teaching Intelligence.
         """
         context_row = self.teaching_contexts.create(
             student_id=student_id,
             topic_id=topic_id,
             teaching_strategy=prompt.teaching_strategy_label,
-            learning_objective=self._resolve_learning_objective(topic_id),
+            learning_objective=teaching_context.learning_objective or "General understanding of this topic.",
             difficulty=prompt.difficulty.value,
         )
         self.ai_interactions.create(
@@ -162,13 +185,3 @@ class AIService:
             prompt=prompt.user_prompt,
             response=parsed_text,
         )
-
-    def _resolve_learning_objective(self, topic_id: uuid.UUID) -> str:
-        # TeachingContext.learning_objective is NOT NULL; a fallback
-        # covers topics with no learning objective authored yet.
-        from backend.repositories import LearningObjectiveRepository
-
-        page = LearningObjectiveRepository(self.db).find_all(topic_id=topic_id, limit=1)
-        if page.total > 0:
-            return page.items[0].description
-        return "General understanding of this topic."
